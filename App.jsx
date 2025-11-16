@@ -4,6 +4,15 @@ import { languages } from "./languages"
 import { getFarewellText, getRandomWord } from "./utils"
 import Confetti from "react-confetti"
 
+import AudioElements from "./components/AudioElements"
+import SkullOverlay from "./components/SkullOverlay"
+import GameStatus from "./components/GameStatus"
+import LanguageChips from "./components/LanguageChips"
+import WordDisplay from "./components/WordDisplay"
+import HintBar from "./components/HintBar"
+import ScreenReaderStatus from "./components/ScreenReaderStatus"
+import Keyboard from "./components/Keyboard"
+
 const MAX_HINTS_PER_GAME = 2
 
 export default function AssemblyEndgame() {
@@ -11,6 +20,14 @@ export default function AssemblyEndgame() {
     const [currentWord, setCurrentWord] = useState(() => getRandomWord())
     const [guessedLetters, setGuessedLetters] = useState([])
     const [hintsUsed, setHintsUsed] = useState(0)
+
+    // Sound refs
+    const correctSoundRef = useRef(null)
+    const wrongSoundRef = useRef(null)
+    const winSoundRef = useRef(null)
+    const loseSoundRef = useRef(null)
+
+    const [hasPlayedEndSound, setHasPlayedEndSound] = useState(false)
 
     // Derived values
     const numGuessesLeft = languages.length - 1
@@ -27,14 +44,6 @@ export default function AssemblyEndgame() {
         lastGuessedLetter && !currentWord.includes(lastGuessedLetter)
 
     const alphabet = "abcdefghijklmnopqrstuvwxyz"
-
-    /* ====== SOUND REFS ====== */
-    const correctSoundRef = useRef(null)
-    const wrongSoundRef = useRef(null)
-    const winSoundRef = useRef(null)
-    const loseSoundRef = useRef(null)
-
-    const [hasPlayedEndSound, setHasPlayedEndSound] = useState(false)
 
     function playSound(ref, options = {}) {
         const { volume = 0.4, detune = 0 } = options
@@ -84,9 +93,15 @@ export default function AssemblyEndgame() {
 
             if (!isGameOver) {
                 if (currentWord.includes(letter)) {
-                    playSound(correctSoundRef, { volume: 0.3, detune: 0.05 })
+                    playSound(correctSoundRef, {
+                        volume: 0.3,
+                        detune: 0.05
+                    })
                 } else {
-                    playSound(wrongSoundRef, { volume: 0.3, detune: 0.08 })
+                    playSound(wrongSoundRef, {
+                        volume: 0.3,
+                        detune: 0.08
+                    })
                 }
             }
 
@@ -125,120 +140,13 @@ export default function AssemblyEndgame() {
         setHintsUsed(prev => prev + 1)
     }
 
-    /* ====== RENDER HELPERS ====== */
-
-    const languageElements = languages.map((lang, index) => {
-        const isLanguageLost = index < wrongGuessCount
-        const styles = {
-            backgroundColor: lang.backgroundColor,
-            color: lang.color
-        }
-        const className = clsx("chip", isLanguageLost && "lost")
-        return (
-            <span
-                className={className}
-                style={styles}
-                key={lang.name}
-            >
-                {lang.name}
-            </span>
-        )
-    })
-
-    const letterElements = currentWord.split("").map((letter, index) => {
-        const shouldRevealLetter = isGameLost || guessedLetters.includes(letter)
-        const letterClassName = clsx(
-            isGameLost && !guessedLetters.includes(letter) && "missed-letter"
-        )
-        return (
-            <span key={index} className={letterClassName}>
-                {shouldRevealLetter ? letter.toUpperCase() : ""}
-            </span>
-        )
-    })
-
-    const keyboardElements = alphabet.split("").map(letter => {
-        const isGuessed = guessedLetters.includes(letter)
-        const isCorrect = isGuessed && currentWord.includes(letter)
-        const isWrong = isGuessed && !currentWord.includes(letter)
-        const className = clsx({
-            correct: isCorrect,
-            wrong: isWrong
-        })
-
-        return (
-            <button
-                className={className}
-                key={letter}
-                disabled={isGameOver}
-                aria-disabled={guessedLetters.includes(letter)}
-                aria-label={`Letter ${letter}`}
-                onClick={() => addGuessedLetter(letter)}
-            >
-                {letter.toUpperCase()}
-            </button>
-        )
-    })
-
-    const gameStatusClass = clsx("game-status", {
-        won: isGameWon,
-        lost: isGameLost,
-        farewell: !isGameOver && isLastGuessIncorrect
-    })
-
-    function renderGameStatus() {
-        if (!isGameOver && isLastGuessIncorrect) {
-            return (
-                <p className="farewell-message">
-                    {getFarewellText(languages[wrongGuessCount - 1].name)}
-                </p>
-            )
-        }
-
-        if (isGameWon) {
-            return (
-                <>
-                    <h2>You win!</h2>
-                    <p>Well done! 🎉</p>
-                </>
-            )
-        }
-        if (isGameLost) {
-            return (
-                <>
-                    <h2>Game over!</h2>
-                    <p>You lose! Better start learning Assembly 😭</p>
-                </>
-            )
-        }
-
-        return null
-    }
-
-    const skulls = Array.from({ length: 12 })
-
     return (
         <>
-            {/* AUDIO ELEMENTS (base nodes for cloning) */}
-            <audio
-                ref={correctSoundRef}
-                src="/sounds/correct.wav"
-                preload="auto"
-            />
-            <audio
-                ref={wrongSoundRef}
-                src="/sounds/wrong.wav"
-                preload="auto"
-            />
-            <audio
-                ref={winSoundRef}
-                src="/sounds/win.wav"
-                preload="auto"
-            />
-            <audio
-                ref={loseSoundRef}
-                src="/sounds/lose.wav"
-                preload="auto"
+            <AudioElements
+                correctSoundRef={correctSoundRef}
+                wrongSoundRef={wrongSoundRef}
+                winSoundRef={winSoundRef}
+                loseSoundRef={loseSoundRef}
             />
 
             {/* Happy confetti on win */}
@@ -251,15 +159,7 @@ export default function AssemblyEndgame() {
             )}
 
             <main className={clsx(isGameLost && "lost-state")}>
-                {isGameLost && (
-                    <div className="skull-overlay" aria-hidden="true">
-                        {skulls.map((_, i) => (
-                            <span key={i} className="skull">
-                                💀
-                            </span>
-                        ))}
-                    </div>
-                )}
+                <SkullOverlay show={isGameLost} />
 
                 <div className={clsx("game-content", isGameLost && "blurred")}>
                     <header>
@@ -270,72 +170,54 @@ export default function AssemblyEndgame() {
                         </p>
                     </header>
 
-                    <section
-                        aria-live="polite"
-                        role="status"
-                        className={gameStatusClass}
-                    >
-                        {renderGameStatus()}
-                    </section>
+                    <GameStatus
+                        isGameOver={isGameOver}
+                        isGameWon={isGameWon}
+                        isGameLost={isGameLost}
+                        isLastGuessIncorrect={!!isLastGuessIncorrect}
+                        wrongGuessCount={wrongGuessCount}
+                        getFarewellText={getFarewellText}
+                        languages={languages}
+                    />
 
                     <section className="language-chips">
-                        {languageElements}
+                        <LanguageChips
+                            languages={languages}
+                            wrongGuessCount={wrongGuessCount}
+                        />
                     </section>
 
                     <section className="word">
-                        {letterElements}
+                        <WordDisplay
+                            currentWord={currentWord}
+                            guessedLetters={guessedLetters}
+                            isGameLost={isGameLost}
+                        />
                     </section>
 
-                    <section
-                        className="hint-bar"
-                        aria-label="Hints and remaining attempts"
-                    >
-                        <p>
-                            Remaining attempts:{" "}
-                            <strong>{remainingGuesses}</strong>
-                        </p>
-                        <button
-                            type="button"
-                            className="hint-button"
-                            onClick={useHint}
-                            disabled={
-                                isGameOver || hintsUsed >= MAX_HINTS_PER_GAME
-                            }
-                        >
-                            {hintsUsed >= MAX_HINTS_PER_GAME
-                                ? "No hints left"
-                                : "Use a hint"}
-                        </button>
-                    </section>
+                    <HintBar
+                        remainingGuesses={remainingGuesses}
+                        hintsUsed={hintsUsed}
+                        maxHints={MAX_HINTS_PER_GAME}
+                        isGameOver={isGameOver}
+                        onUseHint={useHint}
+                    />
 
-                    <section
-                        className="sr-only"
-                        aria-live="polite"
-                        role="status"
-                    >
-                        {lastGuessedLetter && (
-                            <p>
-                                {currentWord.includes(lastGuessedLetter)
-                                    ? `Correct! The letter ${lastGuessedLetter} is in the word.`
-                                    : `Sorry, the letter ${lastGuessedLetter} is not in the word.`}{" "}
-                                You have {remainingGuesses} attempts left.
-                            </p>
-                        )}
-                        <p>
-                            Current word:{" "}
-                            {currentWord
-                                .split("")
-                                .map(letter =>
-                                    guessedLetters.includes(letter)
-                                        ? letter + "."
-                                        : "blank."
-                                )
-                                .join(" ")}
-                        </p>
-                    </section>
+                    <ScreenReaderStatus
+                        currentWord={currentWord}
+                        guessedLetters={guessedLetters}
+                        lastGuessedLetter={lastGuessedLetter}
+                        remainingGuesses={remainingGuesses}
+                    />
 
                     <section className="keyboard">
-                        {keyboardElements}
+                        <Keyboard
+                            alphabet={alphabet}
+                            guessedLetters={guessedLetters}
+                            currentWord={currentWord}
+                            isGameOver={isGameOver}
+                            onLetterClick={addGuessedLetter}
+                        />
                     </section>
                 </div>
 
