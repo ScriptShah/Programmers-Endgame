@@ -86,7 +86,7 @@ export default function AssemblyEndgame() {
             if (!isGameOver) {
                 if (currentWord.includes(letter)) {
                     // correct = bright 8-bit chime
-                    playSound(correctSoundRef, { volume: 0.5, detune: 0.05 })
+                    playSound(correctSoundRef, { volume: 0.3, detune: 0.05 })
                 } else {
                     // wrong = harsher 8-bit noise
                     playSound(wrongSoundRef, { volume: 0.3, detune: 0.08 })
