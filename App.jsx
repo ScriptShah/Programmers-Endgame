@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { clsx } from "clsx"
 import { languages } from "./languages"
 import { getFarewellText, getRandomWord } from "./utils"
@@ -26,21 +26,82 @@ export default function AssemblyEndgame() {
     const isLastGuessIncorrect =
         lastGuessedLetter && !currentWord.includes(lastGuessedLetter)
 
-    // Static values
     const alphabet = "abcdefghijklmnopqrstuvwxyz"
 
+    /* ====== SOUND REFS ====== */
+    const correctSoundRef = useRef(null)
+    const wrongSoundRef = useRef(null)
+    const winSoundRef = useRef(null)
+    const loseSoundRef = useRef(null)
+
+    const [hasPlayedEndSound, setHasPlayedEndSound] = useState(false)
+
+    function playSound(ref, options = {}) {
+        const { volume = 0.4, detune = 0 } = options
+        const base = ref.current
+        if (!base) return
+
+        // clone so multiple beeps can overlap (arcade feel)
+        const node = base.cloneNode()
+        node.volume = volume
+
+        if (detune > 0) {
+            const variation = (Math.random() * 2 - 1) * detune // -detune..+detune
+            node.playbackRate = 1 + variation
+        }
+
+        try {
+            node.play().catch(() => {})
+        } catch {
+            // ignore audio errors
+        }
+    }
+
+    // play win/lose sound once when game ends
+    useEffect(() => {
+        if (!isGameOver) {
+            if (hasPlayedEndSound) setHasPlayedEndSound(false)
+            return
+        }
+
+        if (hasPlayedEndSound) return
+
+        if (isGameWon) {
+            playSound(winSoundRef, { volume: 0.5, detune: 0.03 })
+        } else if (isGameLost) {
+            playSound(loseSoundRef, { volume: 0.3, detune: 0.02 })
+        }
+
+        setHasPlayedEndSound(true)
+    }, [isGameOver, isGameWon, isGameLost, hasPlayedEndSound])
+
+    /* ====== GAME LOGIC ====== */
+
     function addGuessedLetter(letter) {
-        setGuessedLetters(prevLetters =>
-            prevLetters.includes(letter)
-                ? prevLetters
-                : [...prevLetters, letter]
-        )
+        setGuessedLetters(prevLetters => {
+            if (prevLetters.includes(letter)) return prevLetters
+
+            const next = [...prevLetters, letter]
+
+            if (!isGameOver) {
+                if (currentWord.includes(letter)) {
+                    // correct = bright 8-bit chime
+                    playSound(correctSoundRef, { volume: 0.5, detune: 0.05 })
+                } else {
+                    // wrong = harsher 8-bit noise
+                    playSound(wrongSoundRef, { volume: 0.3, detune: 0.08 })
+                }
+            }
+
+            return next
+        })
     }
 
     function startNewGame() {
         setCurrentWord(getRandomWord())
         setGuessedLetters([])
         setHintsUsed(0)
+        setHasPlayedEndSound(false)
     }
 
     function useHint() {
@@ -58,9 +119,17 @@ export default function AssemblyEndgame() {
                 Math.floor(Math.random() * unrevealedLetters.length)
             ]
 
-        addGuessedLetter(randomLetter)
+        // reuse correct.wav as a “hint blip” (lower volume, more detune)
+        playSound(correctSoundRef, { volume: 0.35, detune: 0.1 })
+
+        setGuessedLetters(prev => {
+            if (prev.includes(randomLetter)) return prev
+            return [...prev, randomLetter]
+        })
         setHintsUsed(prev => prev + 1)
     }
+
+    /* ====== RENDER HELPERS ====== */
 
     const languageElements = languages.map((lang, index) => {
         const isLanguageLost = index < wrongGuessCount
@@ -150,11 +219,32 @@ export default function AssemblyEndgame() {
         return null
     }
 
-    // skull grid: just a small array to map over
     const skulls = Array.from({ length: 12 })
 
     return (
         <>
+            {/* AUDIO ELEMENTS (base nodes for cloning) */}
+            <audio
+                ref={correctSoundRef}
+                src="/sounds/correct.wav"
+                preload="auto"
+            />
+            <audio
+                ref={wrongSoundRef}
+                src="/sounds/wrong.wav"
+                preload="auto"
+            />
+            <audio
+                ref={winSoundRef}
+                src="/sounds/win.wav"
+                preload="auto"
+            />
+            <audio
+                ref={loseSoundRef}
+                src="/sounds/lose.wav"
+                preload="auto"
+            />
+
             {/* Happy confetti on win */}
             {isGameWon && (
                 <Confetti
@@ -165,21 +255,16 @@ export default function AssemblyEndgame() {
             )}
 
             <main className={clsx(isGameLost && "lost-state")}>
-                {/* Big skull overlay on loss */}
                 {isGameLost && (
                     <div className="skull-overlay" aria-hidden="true">
                         {skulls.map((_, i) => (
-                            <span
-                                key={i}
-                                className="skull"
-                            >
+                            <span key={i} className="skull">
                                 💀
                             </span>
                         ))}
                     </div>
                 )}
 
-                {/* Everything except the New Game button goes in here */}
                 <div className={clsx("game-content", isGameLost && "blurred")}>
                     <header>
                         <h1>Programmers: Endgame</h1>
@@ -205,7 +290,6 @@ export default function AssemblyEndgame() {
                         {letterElements}
                     </section>
 
-                    {/* Hint + remaining attempts */}
                     <section
                         className="hint-bar"
                         aria-label="Hints and remaining attempts"
@@ -219,8 +303,7 @@ export default function AssemblyEndgame() {
                             className="hint-button"
                             onClick={useHint}
                             disabled={
-                                isGameOver ||
-                                hintsUsed >= MAX_HINTS_PER_GAME
+                                isGameOver || hintsUsed >= MAX_HINTS_PER_GAME
                             }
                         >
                             {hintsUsed >= MAX_HINTS_PER_GAME
@@ -229,7 +312,6 @@ export default function AssemblyEndgame() {
                         </button>
                     </section>
 
-                    {/* Screen-reader-only status */}
                     <section
                         className="sr-only"
                         aria-live="polite"
