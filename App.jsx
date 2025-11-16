@@ -41,12 +41,11 @@ export default function AssemblyEndgame() {
         const base = ref.current
         if (!base) return
 
-        // clone so multiple beeps can overlap (arcade feel)
         const node = base.cloneNode()
         node.volume = volume
 
         if (detune > 0) {
-            const variation = (Math.random() * 2 - 1) * detune // -detune..+detune
+            const variation = (Math.random() * 2 - 1) * detune
             node.playbackRate = 1 + variation
         }
 
@@ -85,10 +84,8 @@ export default function AssemblyEndgame() {
 
             if (!isGameOver) {
                 if (currentWord.includes(letter)) {
-                    // correct = bright 8-bit chime
                     playSound(correctSoundRef, { volume: 0.3, detune: 0.05 })
                 } else {
-                    // wrong = harsher 8-bit noise
                     playSound(wrongSoundRef, { volume: 0.3, detune: 0.08 })
                 }
             }
@@ -119,7 +116,6 @@ export default function AssemblyEndgame() {
                 Math.floor(Math.random() * unrevealedLetters.length)
             ]
 
-        // reuse correct.wav as a “hint blip” (lower volume, more detune)
         playSound(correctSoundRef, { volume: 0.35, detune: 0.1 })
 
         setGuessedLetters(prev => {
@@ -342,6 +338,13 @@ export default function AssemblyEndgame() {
                         {keyboardElements}
                     </section>
                 </div>
+
+                {isGameLost && (
+                    <section className="reveal-word" aria-live="polite">
+                        The word was{" "}
+                        <strong>{currentWord.toUpperCase()}</strong>
+                    </section>
+                )}
 
                 {isGameOver && (
                     <button
