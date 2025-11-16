@@ -226,22 +226,22 @@ export default function AssemblyEndgame() {
             {/* AUDIO ELEMENTS (base nodes for cloning) */}
             <audio
                 ref={correctSoundRef}
-                src="/sounds/correct.wav"
+                src="../sounds/correct.wav"
                 preload="auto"
             />
             <audio
                 ref={wrongSoundRef}
-                src="/sounds/wrong.wav"
+                src="../sounds/wrong.wav"
                 preload="auto"
             />
             <audio
                 ref={winSoundRef}
-                src="/sounds/win.wav"
+                src="../sounds/win.wav"
                 preload="auto"
             />
             <audio
                 ref={loseSoundRef}
-                src="/sounds/lose.wav"
+                src="../sounds/lose.wav"
                 preload="auto"
             />
 
